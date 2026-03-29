@@ -9,7 +9,7 @@ services:
     volumes:
       - ./:/app
     ports:
-      - 8890:8890
+      - 1488:8890
     environment:
       - MLFLOW_TRACKING_URI=http://158.160.2.37:5000/
       - DEFAULT_RUN_ID=${DEFAULT_RUN_ID}
@@ -19,6 +19,8 @@ services:
       - DRIFT_REFERENCE_SIZE=50
       - DRIFT_CURRENT_SIZE=50
       - DRIFT_REPORT_DIR=/app/artifacts/evidently
+      - EVIDENTLY_URL=${EVIDENTLY_URL:-}
+      - EVIDENTLY_PROJECT_ID=${EVIDENTLY_PROJECT_ID:-}
     depends_on:
       - graphite
     command: uvicorn main:app --host 0.0.0.0 --port 8890
