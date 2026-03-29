@@ -1,0 +1,110 @@
+groups:
+  - name: ml-service-alerts
+    rules:
+      - alert: MLServiceDown
+        expr: up{job="ml_service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ML service is down"
+          description: "Prometheus cannot scrape the ml_service target for more than 1 minute."
+
+      - alert: MLServiceHighErrorRate
+        expr: |
+          (
+            sum(rate(ml_service_http_requests_total{status_code=~"5..", path!="/metrics"}[5m]))
+            /
+            clamp_min(sum(rate(ml_service_http_requests_total{path!="/metrics"}[5m])), 0.0001)
+          ) > 0.10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML service has a high 5xx rate"
+          description: "More than 10% of requests returned 5xx responses during the last 5 minutes."
+
+      - alert: MLPredictHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(ml_service_http_request_duration_seconds_bucket{path="/predict"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Predict endpoint latency is high"
+          description: "P95 latency for /predict is above 1 second for 5 minutes."
+
+      - alert: MLModelUnavailable
+        expr: ml_service_model_loaded == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No active model is loaded"
+          description: "The service reports that no model is currently loaded."
+
+      - alert: MLModelReloadFailures
+        expr: increase(ml_service_model_loads_total{result="error"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Model reload failures detected"
+          description: "At least one model load attempt failed in the last 15 minutes."
+
+      - alert: MLDataDriftDetected
+        expr: ml_service_data_drift_detected == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Evidently detected data drift"
+          description: "The latest evidently report shows dataset drift for the active model."
+
+      - alert: MLServiceHighMemoryUsage
+        expr: process_resident_memory_bytes > 7e+08
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML service memory usage is high"
+          description: "Resident memory usage is above 700MB for more than 5 minutes."
+
+      - alert: MLRequiredFeaturesMissing
+        expr: increase(ml_service_feature_missing_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Requests with missing required features detected"
+          description: "At least one prediction request missed required features during the last 10 minutes."
+
+      - alert: MLPredictionClassSkew
+        expr: |
+          (
+            sum(rate(ml_service_predictions_total{prediction="1"}[10m]))
+            /
+            clamp_min(sum(rate(ml_service_predictions_total[10m])), 0.0001)
+          ) > 0.95
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prediction class distribution is highly skewed"
+          description: "Positive-class prediction share stayed above 95% for 10 minutes."
+
+      - alert: MLHighPredictionConfidence
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(ml_service_prediction_probability_bucket[10m])) by (le)
+          ) > 0.99
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prediction probabilities are unusually concentrated near 1"
+          description: "P95 of prediction probabilities is above 0.99 for 10 minutes."
