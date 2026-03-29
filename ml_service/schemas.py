@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PredictRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     age: int | None = Field(default=None, description='Возраст человека')
     workclass: str | None = Field(default=None, description='Тип занятости')
     fnlwgt: int | None = Field(
@@ -53,9 +55,6 @@ class PredictRequest(BaseModel):
         description='Страна происхождения',
     )
 
-    class Config:
-        allow_population_by_field_name = True
-
 
 class PredictResponse(BaseModel):
     prediction: int = Field(description='Предсказанный класс')
@@ -63,7 +62,15 @@ class PredictResponse(BaseModel):
 
 
 class UpdateModelRequest(BaseModel):
-    run_id: str = Field(description='MLflow run_id')
+    run_id: str = Field(min_length=1, description='MLflow run_id')
+
+    @field_validator('run_id')
+    @classmethod
+    def normalize_run_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError('run_id must not be empty')
+        return value
 
 
 class UpdateModelResponse(BaseModel):
